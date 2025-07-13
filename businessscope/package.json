@@ -6,7 +6,10 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:db": "node scripts/test-db.js",
+    "test:redis": "node scripts/test-redis.js",
+    "test:connections": "tsx scripts/test-connections.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.10.0",
