@@ -61,7 +61,7 @@
 
 #### Day 3-5：项目基础架构（15小时）🔴
 
-- [ ] **任务2.1** 核心依赖安装与配置⏭️
+- [x] **任务2.1** 核心依赖安装与配置✅
   ```bash
   # 数据库相关
   npm install @vercel/postgres @vercel/kv prisma @prisma/client
@@ -86,19 +86,35 @@
   ```
   - **时间预估**: 3小时
   - **验收标准**: 所有依赖正确安装
+  - **实际完成时间**: 2025年7月 (所有核心依赖安装完毕，构建测试通过)
+  - **已安装包列表**:
+    - 数据库: @vercel/postgres, @vercel/kv, prisma, @prisma/client
+    - 认证: next-auth, @auth/prisma-adapter  
+    - UI组件: @radix-ui/react-*, class-variance-authority, clsx, tailwind-merge
+    - 表单: react-hook-form, @hookform/resolvers, zod
+    - 状态管理: zustand
+    - 图标图表: lucide-react, recharts
+    - 开发工具: @types/node, tsx
 
-- [ ] **任务2.2** shadcn/ui组件库初始化⏭️
+- [x] **任务2.2** shadcn/ui组件库初始化✅
   ```bash
-  npx shadcn-ui@latest init
-  npx shadcn-ui@latest add button card input label form
-  npx shadcn-ui@latest add table pagination dropdown-menu
-  npx shadcn-ui@latest add avatar badge dialog sheet tabs
-  npx shadcn-ui@latest add select textarea checkbox
+  npx shadcn@latest init
+  npx shadcn@latest add button card input label form
+  npx shadcn@latest add table pagination dropdown-menu
+  npx shadcn@latest add avatar badge dialog sheet tabs
+  npx shadcn@latest add select textarea checkbox
   ```
-  - [ ] 配置组件主题
-  - [ ] 测试基础组件
+  - [x] 配置组件主题
+  - [x] 测试基础组件
   - **时间预估**: 4小时
   - **验收标准**: UI组件库可正常使用
+  - **实际完成时间**: 2025年7月 (shadcn/ui初始化完成，16个组件安装成功)
+  - **配置详情**:
+    - 主题: new-york 风格，neutral 基础色彩
+    - 组件数量: 16个核心UI组件
+    - 测试页面: /test-ui (构建测试通过)
+    - 配置文件: components.json, 支持TypeScript和RSC
+  - **已安装组件**: button, card, input, label, form, select, textarea, checkbox, table, pagination, dropdown-menu, avatar, badge, dialog, sheet, tabs
 
 - [ ] **任务2.3** 项目结构优化⏭️
   ```

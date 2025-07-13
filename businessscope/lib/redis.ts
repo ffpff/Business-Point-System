@@ -28,8 +28,8 @@ export async function testRedisConnection() {
 // 备用方案：使用REDIS_URL的ioredis连接
 export async function testRedisConnectionAlt() {
   try {
-    const Redis = require('ioredis');
-    const redis = new Redis(process.env.REDIS_URL);
+    const { default: Redis } = await import('ioredis');
+    const redis = new Redis(process.env.REDIS_URL!);
 
     await redis.set('test-key', 'test-value');
     const value = await redis.get('test-key');
