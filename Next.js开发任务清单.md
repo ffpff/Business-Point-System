@@ -36,21 +36,28 @@
   - **验收标准**: Next.js项目可以本地运行
   - **实际完成时间**: 2024年12月 (已完成项目创建、结构验证、本地运行测试)
 
-- [ ] **任务1.3** Vercel项目部署配置⏭️
-  - [ ] 在Vercel导入GitHub项目
-  - [ ] 配置自动部署设置
-  - [ ] 测试部署流程
-  - [ ] 获取项目访问域名
+- [x] **任务1.3** Vercel项目部署配置✅
+  - [x] 在Vercel导入GitHub项目
+  - [x] 配置自动部署设置
+  - [x] 测试部署流程
+  - [x] 获取项目访问域名
   - **时间预估**: 2小时
   - **验收标准**: 项目自动部署成功，可以在线访问
+  - **项目访问地址**: https://business-point-system.vercel.app/
+  - **实际完成时间**: 2025年7月 (部署成功，自动部署配置完成)
 
-- [ ] **任务1.4** 数据库服务创建⏭️
-  - [ ] 创建Vercel Postgres数据库
-  - [ ] 创建Vercel KV存储
-  - [ ] 配置环境变量
-  - [ ] 测试数据库连接
+- [x] **任务1.4** 数据库服务创建✅
+  - [x] 创建Vercel Postgres数据库
+  - [x] 创建Vercel KV存储  
+  - [x] 配置环境变量
+  - [x] 测试数据库连接
   - **时间预估**: 3小时
   - **验收标准**: 数据库服务正常运行
+  - **实际完成时间**: 2025年7月 (PostgreSQL + Supabase连接成功，Upstash Redis双方式连接测试通过)
+  - **技术栈**: 
+    - PostgreSQL (Supabase) - 主数据库
+    - Redis (Upstash) - 缓存和会话存储，支持REST API和IORedis两种连接方式
+    - 已安装依赖: pg, @types/pg, @upstash/redis, ioredis, @types/ioredis
 
 #### Day 3-5：项目基础架构（15小时）🔴
 
