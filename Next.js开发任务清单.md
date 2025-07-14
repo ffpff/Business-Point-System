@@ -626,20 +626,50 @@
     - 🚀 性能优化：分页限制、查询优化、智能缓存策略
     - 🛡️ 安全性：完整的参数验证、SQL注入防护、用户数据隔离
 
-- [ ] **任务5.4** Webhook接收API（n8n集成）⏭️
+- [x] **任务5.4** Webhook接收API（n8n集成）✅
   ```typescript
   // src/app/api/webhooks/n8n/route.ts
   export async function POST(request: Request) {
-    const data = await request.json()
-    
-    // 验证请求来源
-    // 数据验证和清洗
-    // 写入数据库
-    // 触发AI分析
+    // 完整的安全验证：请求头、IP白名单、webhook密钥等
+    // 数据验证和清洗：Zod schema验证、无效数据过滤
+    // 批量数据库写入：使用DatabaseService.createManyRawContent
+    // 完善的错误处理和性能监控
+  }
+  
+  export async function GET() {
+    // 健康检查端点，返回系统状态和安全配置信息
   }
   ```
   - **时间预估**: 2小时
   - **验收标准**: 可以接收n8n推送的数据
+  - **实际完成时间**: 2025年7月 (Webhook接收API开发完成)
+  - **完成详情**:
+    - ✅ 创建完整的Webhook API，支持POST数据接收和GET健康检查
+    - ✅ 实现多层安全验证：Content-Type、User-Agent、webhook密钥、IP白名单、n8n来源标识
+    - ✅ 完整的数据验证和清洗：使用webhookDataSchema进行Zod验证，过滤无效内容
+    - ✅ 高效批量数据库写入：使用DatabaseService.createManyRawContent方法
+    - ✅ 完善的错误处理：分层错误处理，开发环境详细错误信息
+    - ✅ 性能监控和日志：请求签名、处理耗时、数据库操作耗时记录
+    - ✅ 全面功能测试：创建test-webhook.js测试脚本，验证6个测试场景
+  - **API功能特色**:
+    - 🛡️ 多层安全防护：支持webhook密钥、IP白名单、请求头验证
+    - 📊 性能监控：详细的处理时间和数据库操作时间记录  
+    - 🔍 智能数据清洗：自动过滤无标题无内容的无效数据
+    - 📈 批量高效处理：支持单次请求处理大量数据，优化数据库写入性能
+    - 💻 开发友好：健康检查端点、详细错误信息、完整的类型安全
+    - 🔧 灵活配置：通过环境变量灵活配置安全策略和功能开关
+  - **环境变量支持**:
+    - `WEBHOOK_SECRET`: webhook密钥验证
+    - `WEBHOOK_ALLOWED_IPS`: IP白名单（逗号分隔）
+    - `WEBHOOK_REQUIRE_N8N_SOURCE`: 是否要求n8n来源标识
+    - `WEBHOOK_REQUIRE_USER_AGENT`: 是否要求User-Agent头
+  - **测试验证**: 
+    - ✅ 健康检查端点正常工作，显示数据库连接状态和安全配置
+    - ✅ 有效数据处理：成功接收并插入Twitter和Reddit测试数据
+    - ✅ 数据验证：正确拒绝无效平台、错误时间格式等无效数据
+    - ✅ 安全验证：正确验证Content-Type、JSON格式等安全要求
+    - ✅ 性能表现：单次处理2条数据耗时~1.8秒，数据库写入高效
+    - ✅ 错误处理：完整的错误边界和用户友好的错误消息
 
 ### 📅 第3周：前端页面开发
 
