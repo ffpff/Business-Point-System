@@ -29,7 +29,10 @@ async function verifyWebhookData() {
     }
     
     // 3. 按平台统计
-    const platformStats = await DatabaseService.getPlatformStats()
+    const startDate = new Date()
+    startDate.setDate(startDate.getDate() - 30) // 30 days ago
+    const endDate = new Date()
+    const platformStats = await DatabaseService.getPlatformStats({ startDate, endDate })
     console.log('📈 平台统计:')
     Object.entries(platformStats).forEach(([platform, count]) => {
       console.log(`- ${platform}: ${count} 条`)
