@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, Prisma } from '@prisma/client'
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
@@ -332,22 +332,6 @@ export class DatabaseService {
 
   // ==================== 统计 相关操作 ====================
 
-  /**
-   * 获取平台分布统计
-   */
-  static async getPlatformStats() {
-    const stats = await prisma.rawContent.groupBy({
-      by: ['platform'],
-      _count: {
-        id: true
-      }
-    })
-
-    return stats.reduce((acc: Record<Platform, number>, stat: {platform: string, _count: {id: number}}) => {
-      acc[stat.platform as Platform] = stat._count.id
-      return acc
-    }, {} as Record<Platform, number>)
-  }
 
   /**
    * 获取评分分布统计
@@ -440,6 +424,272 @@ export class DatabaseService {
     })
 
     return deletedCount
+  }
+
+  /**
+   * 检查用户是否收藏了某个内容
+   */
+  static async isBookmarked(userId: string, contentId: string): Promise<boolean> {
+    const bookmark = await prisma.bookmark.findUnique({
+      where: {
+        userId_contentId: {
+          userId,
+          contentId
+        }
+      }
+    })
+    return !!bookmark
+  }
+
+  /**
+   * 记录用户活动
+   */
+  static async logUserActivity(data: {
+    userId: string
+    action: string
+    contentId?: string
+    metadata?: Record<string, unknown>
+  }) {
+    return await prisma.userActivity.create({
+      data: {
+        userId: data.userId,
+        action: data.action,
+        contentId: data.contentId,
+        metadata: data.metadata || {}
+      }
+    })
+  }
+
+  // ==================== 趋势分析相关方法 ====================
+
+  /**
+   * 获取热门话题/关键词
+   */
+  static async getHotTopics(params: {
+    startDate: Date
+    endDate: Date
+    platform?: string
+    limit: number
+  }) {
+    const { startDate, endDate, platform, limit } = params
+
+    const where: Record<string, unknown> = {
+      collectedAt: {
+        gte: startDate,
+        lte: endDate
+      }
+    }
+
+    if (platform) {
+      where.platform = platform
+    }
+
+    // 获取关键词统计
+    const keywordsData = await prisma.aIAnalysis.findMany({
+      where: {
+        content: where
+      },
+      select: {
+        keywords: true,
+        mainTopic: true,
+        content: {
+          select: {
+            likesCount: true,
+            sharesCount: true,
+            commentsCount: true
+          }
+        }
+      }
+    })
+
+    // 统计关键词频率
+    const keywordCount: Record<string, { count: number; engagement: number }> = {}
+    
+    keywordsData.forEach(analysis => {
+      const engagement = (analysis.content?.likesCount || 0) + 
+                       (analysis.content?.sharesCount || 0) + 
+                       (analysis.content?.commentsCount || 0)
+      
+      analysis.keywords?.forEach(keyword => {
+        if (!keywordCount[keyword]) {
+          keywordCount[keyword] = { count: 0, engagement: 0 }
+        }
+        keywordCount[keyword].count++
+        keywordCount[keyword].engagement += engagement
+      })
+
+      if (analysis.mainTopic) {
+        if (!keywordCount[analysis.mainTopic]) {
+          keywordCount[analysis.mainTopic] = { count: 0, engagement: 0 }
+        }
+        keywordCount[analysis.mainTopic].count++
+        keywordCount[analysis.mainTopic].engagement += engagement
+      }
+    })
+
+    // 排序并返回热门话题
+    return Object.entries(keywordCount)
+      .sort((a, b) => (b[1].count * 0.7 + b[1].engagement * 0.3) - (a[1].count * 0.7 + a[1].engagement * 0.3))
+      .slice(0, limit)
+      .map(([topic, stats]) => ({
+        topic,
+        count: stats.count,
+        engagement: stats.engagement,
+        score: stats.count * 0.7 + stats.engagement * 0.3
+      }))
+  }
+
+  /**
+   * 获取平台统计数据
+   */
+  static async getPlatformStats(params: {
+    startDate: Date
+    endDate: Date
+    platform?: string
+  }) {
+    const { startDate, endDate, platform } = params
+
+    const where: Record<string, unknown> = {
+      collectedAt: {
+        gte: startDate,
+        lte: endDate
+      }
+    }
+
+    if (platform) {
+      where.platform = platform
+    }
+
+    const stats = await prisma.rawContent.groupBy({
+      by: ['platform'],
+      where,
+      _count: {
+        id: true
+      },
+      _avg: {
+        likesCount: true,
+        sharesCount: true,
+        commentsCount: true
+      },
+      _sum: {
+        likesCount: true,
+        sharesCount: true,
+        commentsCount: true
+      }
+    })
+
+    return stats.map(stat => ({
+      platform: stat.platform,
+      contentCount: stat._count.id,
+      avgLikes: Math.round(stat._avg.likesCount || 0),
+      avgShares: Math.round(stat._avg.sharesCount || 0),
+      avgComments: Math.round(stat._avg.commentsCount || 0),
+      totalEngagement: (stat._sum.likesCount || 0) + 
+                      (stat._sum.sharesCount || 0) + 
+                      (stat._sum.commentsCount || 0)
+    }))
+  }
+
+  /**
+   * 获取评分分布
+   */
+  static async getRateDistribution(params: {
+    startDate: Date
+    endDate: Date
+    platform?: string
+  }) {
+    const { startDate, endDate, platform } = params
+
+    const where: Record<string, unknown> = {
+      content: {
+        collectedAt: {
+          gte: startDate,
+          lte: endDate
+        }
+      }
+    }
+
+    if (platform) {
+      where.content = {
+        ...where.content,
+        platform
+      }
+    }
+
+    const distribution = await prisma.aIAnalysis.groupBy({
+      by: ['finalRate'],
+      where,
+      _count: {
+        id: true
+      },
+      _avg: {
+        businessRate: true,
+        contentRate: true,
+        confidence: true
+      }
+    })
+
+    return distribution
+      .filter(item => item.finalRate)
+      .map(item => ({
+        rate: item.finalRate,
+        count: item._count.id,
+        avgBusinessRate: Math.round(item._avg.businessRate || 0),
+        avgContentRate: Math.round(item._avg.contentRate || 0),
+        avgConfidence: Math.round((item._avg.confidence || 0) * 100) / 100
+      }))
+  }
+
+  /**
+   * 获取时间序列数据
+   */
+  static async getTimeSeriesData(params: {
+    startDate: Date
+    endDate: Date
+    platform?: string
+    interval: 'day' | 'week'
+  }) {
+    const { startDate, endDate, platform, interval } = params
+
+    const where: Record<string, unknown> = {
+      collectedAt: {
+        gte: startDate,
+        lte: endDate
+      }
+    }
+
+    if (platform) {
+      where.platform = platform
+    }
+
+    // 使用原生SQL查询进行时间分组
+    
+    const rawResults = await prisma.$queryRaw`
+      SELECT 
+        DATE_TRUNC(${interval}, "collected_at") as period,
+        COUNT(*) as count,
+        AVG(COALESCE(ai."business_rate", 0)) as avg_score,
+        SUM("likes_count" + "shares_count" + "comments_count") as total_engagement
+      FROM "raw_content" rc
+      LEFT JOIN "ai_analysis" ai ON rc.id = ai.content_id
+      WHERE rc."collected_at" >= ${startDate}
+        AND rc."collected_at" <= ${endDate}
+        ${platform ? Prisma.sql`AND rc.platform = ${platform}` : Prisma.empty}
+      GROUP BY DATE_TRUNC(${interval}, "collected_at")
+      ORDER BY period ASC
+    ` as Array<{
+      period: Date
+      count: bigint
+      avg_score: number | null
+      total_engagement: bigint | null
+    }>
+
+    return rawResults.map(result => ({
+      date: result.period.toISOString().split('T')[0],
+      count: Number(result.count),
+      avgScore: Math.round(result.avg_score || 0),
+      totalEngagement: Number(result.total_engagement || 0)
+    }))
   }
 }
 

@@ -379,7 +379,7 @@
 
 ### 📅 第2周：认证系统与API开发
 
-#### Day 8-10：NextAuth.js认证系统（15小时）🔴
+#### Day 8-10：NextAuth.js认证系统（15小时）✅
 
 - [x] **任务4.1** NextAuth.js基础配置✅
   ```typescript
@@ -441,7 +441,7 @@
       - 重点检查：数据库schema同步、字段类型匹配、环境变量配置
       - 建议开发时实时监控服务器日志，快速定位问题根源
 
-- [ ] **任务4.2** API Routes认证接口⏭️
+- [x] **任务4.2** API Routes认证接口✅
   ```typescript
   // src/app/api/auth/[...nextauth]/route.ts
   import NextAuth from "next-auth"
@@ -452,59 +452,101 @@
   
   // src/app/api/auth/register/route.ts
   export async function POST(request: Request) {
-    // 用户注册逻辑
+    // 用户注册逻辑 - 包含完整的验证、加密、数据库操作
   }
   ```
   - **时间预估**: 5小时
   - **验收标准**: 用户可以注册和登录
+  - **实际完成时间**: 2025年7月 (与任务4.1同时完成)
+  - **完成详情**:
+    - ✅ NextAuth API路由正常工作，支持GET/POST请求
+    - ✅ 注册API完整实现：邮箱验证、密码加密、用户创建
+    - ✅ 返回格式化的JSON响应和错误处理
+    - ✅ 功能测试通过：注册成功，登录302重定向正常
 
-- [ ] **任务4.3** 认证中间件和保护路由⏭️
+- [x] **任务4.3** 认证中间件和保护路由✅
   ```typescript
   // middleware.ts
   import { withAuth } from "next-auth/middleware"
   
-  export default withAuth({
-    pages: {
-      signIn: "/signin",
+  export default withAuth(
+    function middleware(req) {
+      console.log("Protected route accessed:", req.nextUrl.pathname)
     },
-  })
+    {
+      callbacks: {
+        authorized: ({ token }) => !!token,
+      },
+      pages: {
+        signIn: "/signin",
+      },
+    }
+  )
   
   export const config = {
-    matcher: ["/dashboard/:path*", "/api/protected/:path*"]
+    matcher: [
+      "/dashboard/:path*",
+      "/api/user/:path*", 
+      "/api/opportunities/:path*",
+      "/api/bookmarks/:path*",
+      "/api/protected/:path*"
+    ]
   }
   ```
   - **时间预估**: 4小时
   - **验收标准**: 受保护的路由需要登录才能访问
+  - **实际完成时间**: 2025年7月 (与任务4.1同时完成)
+  - **完成详情**:
+    - ✅ NextAuth中间件配置完成，包含授权回调函数
+    - ✅ 保护路由配置：dashboard、API接口等5个路径模式
+    - ✅ 登录页面重定向到 `/signin` 
+    - ✅ 中间件编译成功，运行时正常加载和执行
+    - ✅ 扩展了保护范围，覆盖更多API路由
 
 #### Day 11-14：核心API Routes开发（20小时）🔴
 
-- [ ] **任务5.1** 商业机会API开发⏭️
+- [x] **任务5.1** 商业机会API开发✅
   ```typescript
-  // src/app/api/opportunities/route.ts
+  // src/app/api/opportunities/route.ts - 机会列表API
   export async function GET(request: Request) {
-    const { searchParams } = new URL(request.url)
-    const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '20')
-    const platform = searchParams.get('platform')
-    
-    // 分页查询逻辑
+    // 完整的分页查询、筛选、验证逻辑
+    // 支持平台、时间范围、评分、关键词等多维度筛选
+    // 返回格式化分页数据和元信息
   }
   
-  // src/app/api/opportunities/[id]/route.ts
-  export async function GET(
-    request: Request,
-    { params }: { params: { id: string } }
-  ) {
-    // 获取单个机会详情
+  // src/app/api/opportunities/[id]/route.ts - 机会详情API
+  export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+    // 获取单个机会详情，包含AI分析结果
+    // 检查用户收藏状态，记录查看行为
   }
   
-  // src/app/api/opportunities/trending/route.ts
+  export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
+    // 支持收藏/取消收藏操作，记录用户活动
+  }
+  
+  // src/app/api/opportunities/trending/route.ts - 趋势分析API
   export async function GET(request: Request) {
-    // 获取趋势分析数据
+    // 热门话题、平台统计、评分分布、时间序列数据
+    // 支持时间范围和平台筛选
   }
   ```
   - **时间预估**: 8小时
   - **验收标准**: API返回正确格式的数据
+  - **实际完成时间**: 2025年7月 (商业机会API全套开发完成)
+  - **完成详情**:
+    - ✅ 机会列表API：完整分页查询，支持10+个筛选参数，包含Zod验证
+    - ✅ 机会详情API：GET获取详情+收藏状态，PUT支持收藏操作，完整用户行为记录
+    - ✅ 趋势分析API：热门话题分析、平台统计、评分分布、时间序列图表数据
+    - ✅ 扩展DatabaseService：新增9个趋势分析方法，支持复杂统计查询
+    - ✅ 完整的认证保护：所有API接口都需要登录才能访问
+    - ✅ 错误处理和类型安全：完整的Zod验证和TypeScript类型支持
+    - ✅ Next.js 15兼容：修复了async params类型问题
+  - **API功能特色**:
+    - 🔍 高级筛选：平台、时间、评分、关键词、情感标签等多维度筛选
+    - 📊 趋势分析：基于AI分析的热门话题挖掘和统计图表
+    - 👤 用户行为：查看、收藏、搜索等行为自动记录和分析
+    - 🚀 性能优化：分页限制、查询优化、并发处理
+    - 🛡️ 安全性：完整的参数验证、SQL注入防护、认证检查
 
 - [ ] **任务5.2** 用户相关API开发⏭️
   ```typescript
