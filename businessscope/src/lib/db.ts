@@ -343,7 +343,7 @@ export class DatabaseService {
       }
     })
 
-    return stats.reduce((acc: Record<Platform, number>, stat) => {
+    return stats.reduce((acc: Record<Platform, number>, stat: {platform: string, _count: {id: number}}) => {
       acc[stat.platform as Platform] = stat._count.id
       return acc
     }, {} as Record<Platform, number>)
@@ -363,7 +363,7 @@ export class DatabaseService {
       }
     })
 
-    return stats.reduce((acc: Record<FinalRate, number>, stat) => {
+    return stats.reduce((acc: Record<FinalRate, number>, stat: {finalRate: string | null, _count: {id: number}}) => {
       if (stat.finalRate) {
         acc[stat.finalRate as FinalRate] = stat._count.id
       }
