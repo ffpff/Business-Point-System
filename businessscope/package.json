@@ -4,9 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
+    "postinstall": "prisma generate",
     "test:db": "node scripts/test-db.js",
     "test:redis": "node scripts/test-redis.js",
     "test:connections": "tsx scripts/test-connections.ts",

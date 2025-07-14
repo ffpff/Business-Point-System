@@ -1,4 +1,9 @@
 import { DatabaseService } from '../src/lib/db'
+import { Prisma } from '@prisma/client'
+
+type RawContentWithAnalysis = Prisma.RawContentGetPayload<{
+  include: { analysis: true }
+}>
 
 async function verifyWebhookData() {
   try {
@@ -15,7 +20,7 @@ async function verifyWebhookData() {
     // 2. 显示最新的几条数据
     if (result.opportunities.length > 0) {
       console.log('📝 最新数据（前5条）:')
-      result.opportunities.slice(0, 5).forEach((item: any, index: number) => {
+      result.opportunities.slice(0, 5).forEach((item: RawContentWithAnalysis, index: number) => {
         console.log(`  ${index + 1}. 平台: ${item.platform}`)
         console.log(`     标题: ${item.title || '无标题'}`)
         console.log(`     作者: ${item.author || '无作者'}`)
