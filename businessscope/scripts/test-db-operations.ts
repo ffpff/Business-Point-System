@@ -34,12 +34,18 @@ async function testDatabaseOperations() {
 
     // 3. 测试平台统计
     console.log('\n3️⃣ 测试平台分布统计...')
-    const platformStats = await DatabaseService.getPlatformStats()
+    const platformStats = await DatabaseService.getPlatformStats({
+      startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+      endDate: new Date()
+    })
     console.log(`   平台统计:`, platformStats)
 
     // 4. 测试评分分布统计
     console.log('\n4️⃣ 测试评分分布统计...')
-    const rateStats = await DatabaseService.getRateDistribution()
+    const rateStats = await DatabaseService.getRateDistribution({
+      startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+      endDate: new Date()
+    })
     console.log(`   评分统计:`, rateStats)
 
     // 5. 测试仪表板统计

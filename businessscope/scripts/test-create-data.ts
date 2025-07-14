@@ -147,7 +147,10 @@ async function createTestData() {
     console.log(`   收藏数: ${stats.bookmarkedOpportunities}`)
     console.log(`   平均评分: ${stats.averageScore}`)
 
-    const platformStats = await DatabaseService.getPlatformStats()
+    const platformStats = await DatabaseService.getPlatformStats({
+      startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+      endDate: new Date()
+    })
     console.log(`   平台分布:`, platformStats)
 
   } catch (error) {

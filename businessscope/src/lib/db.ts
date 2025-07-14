@@ -55,9 +55,7 @@ import type {
   User, 
   FilterState,
   PaginationParams,
-  Platform,
-  ContentStatus,
-  FinalRate
+  ContentStatus
 } from '@/types'
 
 /**
@@ -270,6 +268,20 @@ export class DatabaseService {
     })
   }
 
+  /**
+   * 更新用户资料
+   */
+  static async updateUserProfile(userId: string, data: { name?: string; email?: string }) {
+    return await prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...data,
+        name: data.name || null,
+        lastActiveAt: new Date()
+      }
+    })
+  }
+
   // ==================== 收藏 相关操作 ====================
 
   /**
@@ -333,27 +345,6 @@ export class DatabaseService {
   // ==================== 统计 相关操作 ====================
 
 
-  /**
-   * 获取评分分布统计
-   */
-  static async getRateDistribution() {
-    const stats = await prisma.aIAnalysis.groupBy({
-      by: ['finalRate'],
-      _count: {
-        id: true
-      },
-      where: {
-        finalRate: { not: null }
-      }
-    })
-
-    return stats.reduce((acc: Record<FinalRate, number>, stat: {finalRate: string | null, _count: {id: number}}) => {
-      if (stat.finalRate) {
-        acc[stat.finalRate as FinalRate] = stat._count.id
-      }
-      return acc
-    }, {} as Record<FinalRate, number>)
-  }
 
   /**
    * 获取用户仪表板统计数据
@@ -455,9 +446,79 @@ export class DatabaseService {
         userId: data.userId,
         action: data.action,
         contentId: data.contentId,
-        metadata: data.metadata || {}
+        metadata: data.metadata ? JSON.parse(JSON.stringify(data.metadata)) : {}
       }
     })
+  }
+
+  /**
+   * 获取用户指定时间范围内的活动记录
+   */
+  static async getUserActivitiesInRange(userId: string, startDate: Date, endDate: Date) {
+    return await prisma.userActivity.findMany({
+      where: {
+        userId,
+        createdAt: {
+          gte: startDate,
+          lte: endDate
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 1000 // 限制返回数量，避免数据过大
+    })
+  }
+
+  /**
+   * 获取用户收藏统计
+   */
+  static async getUserBookmarkStats(userId: string) {
+    const [totalBookmarks, recentBookmarks, topPlatforms] = await Promise.all([
+      // 总收藏数
+      prisma.bookmark.count({ where: { userId } }),
+      
+      // 最近7天收藏数
+      prisma.bookmark.count({
+        where: {
+          userId,
+          createdAt: {
+            gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+          }
+        }
+      }),
+      
+      // 收藏内容的平台分布
+      prisma.bookmark.groupBy({
+        by: ['contentId'],
+        where: { userId },
+        _count: { id: true }
+      }).then(async (bookmarks) => {
+        // 获取内容的平台信息
+        const contentIds = bookmarks.map(b => b.contentId)
+        const contents = await prisma.rawContent.findMany({
+          where: { id: { in: contentIds } },
+          select: { id: true, platform: true }
+        })
+        
+        const platformCounts: Record<string, number> = {}
+        contents.forEach(content => {
+          const bookmark = bookmarks.find(b => b.contentId === content.id)
+          if (bookmark) {
+            platformCounts[content.platform] = (platformCounts[content.platform] || 0) + bookmark._count.id
+          }
+        })
+        
+        return Object.entries(platformCounts)
+          .sort(([,a], [,b]) => b - a)
+          .slice(0, 5)
+          .map(([platform, count]) => ({ platform, count }))
+      })
+    ])
+
+    return {
+      totalBookmarks,
+      recentBookmarks,
+      topPlatforms
+    }
   }
 
   // ==================== 趋势分析相关方法 ====================
@@ -611,7 +672,7 @@ export class DatabaseService {
 
     if (platform) {
       where.content = {
-        ...where.content,
+        ...(where.content as Record<string, unknown>),
         platform
       }
     }
@@ -690,6 +751,158 @@ export class DatabaseService {
       avgScore: Math.round(result.avg_score || 0),
       totalEngagement: Number(result.total_engagement || 0)
     }))
+  }
+
+  // ==================== 用户活动 相关操作 ====================
+
+  /**
+   * 获取用户活动记录
+   */
+  static async getUserActivities(userId: string, params: {
+    page: number
+    limit: number
+    activityType?: string
+  }) {
+    const { page, limit, activityType } = params
+    const skip = (page - 1) * limit
+    
+    const where: Record<string, unknown> = { userId }
+    if (activityType) {
+      where.action = activityType
+    }
+
+    const [activities, total] = await Promise.all([
+      prisma.userActivity.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+        include: {
+          content: {
+            select: {
+              id: true,
+              title: true,
+              platform: true
+            }
+          }
+        }
+      }),
+      prisma.userActivity.count({ where })
+    ])
+
+    return {
+      activities,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit)
+    }
+  }
+
+  /**
+   * 获取用户活动数量
+   */
+  static async getUserActivitiesCount(userId: string, activityType?: string) {
+    const where: Record<string, unknown> = { userId }
+    if (activityType) {
+      where.action = activityType
+    }
+
+    return await prisma.userActivity.count({ where })
+  }
+
+  /**
+   * 删除特定类型的用户活动
+   */
+  static async deleteUserActivitiesByType(userId: string, activityType: string) {
+    return await prisma.userActivity.deleteMany({
+      where: {
+        userId,
+        action: activityType
+      }
+    })
+  }
+
+  /**
+   * 删除特定的用户活动记录
+   */
+  static async deleteUserActivity(userId: string, activityId: string) {
+    return await prisma.userActivity.deleteMany({
+      where: {
+        id: activityId,
+        userId // 确保只能删除自己的记录
+      }
+    })
+  }
+
+  /**
+   * 批量删除用户活动记录
+   */
+  static async batchDeleteUserActivities(userId: string, activityIds: string[]) {
+    return await prisma.userActivity.deleteMany({
+      where: {
+        id: { in: activityIds },
+        userId // 确保只能删除自己的记录
+      }
+    })
+  }
+
+  /**
+   * 获取用户搜索统计
+   */
+  static async getUserSearchStats(userId: string, params: {
+    startDate?: Date
+    endDate?: Date
+  }) {
+    const { startDate, endDate } = params
+    const where: Record<string, unknown> = {
+      userId,
+      action: 'search'
+    }
+
+    if (startDate && endDate) {
+      where.createdAt = {
+        gte: startDate,
+        lte: endDate
+      }
+    }
+
+    const [totalSearches, recentSearches] = await Promise.all([
+      prisma.userActivity.count({ where }),
+      prisma.userActivity.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+        select: {
+          metadata: true,
+          createdAt: true
+        }
+      })
+    ])
+
+    // 分析搜索关键词频率
+    const searchTerms = recentSearches
+      .map(activity => {
+        const metadata = activity.metadata as Record<string, unknown>
+        return metadata?.searchQuery as string
+      })
+      .filter(Boolean)
+
+    const termFrequency = searchTerms.reduce((acc: Record<string, number>, term: string) => {
+      acc[term] = (acc[term] || 0) + 1
+      return acc
+    }, {})
+
+    const topSearchTerms = Object.entries(termFrequency)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 5)
+      .map(([term, count]) => ({ term, count }))
+
+    return {
+      totalSearches,
+      topSearchTerms,
+      recentSearches: recentSearches.slice(0, 5)
+    }
   }
 }
 
