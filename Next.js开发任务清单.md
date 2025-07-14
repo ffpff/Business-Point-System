@@ -336,7 +336,7 @@
     - Prisma Studio可正常启动和访问
     - 数据库连接和基本查询操作验证通过
 
-- [ ] **任务3.3** 数据库操作封装⏭️
+- [x] **任务3.3** 数据库操作封装✅
   ```typescript
   // src/lib/db.ts
   import { PrismaClient } from '@prisma/client'
@@ -348,12 +348,34 @@
   export const prisma = globalForPrisma.prisma ?? new PrismaClient()
   
   if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+  
+  // 导出 DatabaseService 类，包含所有常用数据库操作方法
+  export class DatabaseService {
+    // RawContent 相关操作: getOpportunities, getOpportunityById, createRawContent, createManyRawContent, updateContentStatus
+    // AI分析相关操作: createAIAnalysis, getPendingContent  
+    // 用户相关操作: getUserByEmail, createUser, updateUserUsage
+    // 收藏相关操作: addBookmark, removeBookmark, getUserBookmarks
+    // 统计相关操作: getPlatformStats, getRateDistribution, getDashboardStats
+    // 工具方法: healthCheck, cleanupOldData
+  }
   ```
-  - [ ] 创建数据库连接实例
-  - [ ] 封装常用查询方法
-  - [ ] 测试数据库操作
+  - [x] 创建数据库连接实例
+  - [x] 封装常用查询方法（20个核心方法）
+  - [x] 测试数据库操作（包含测试数据创建和功能验证）
   - **时间预估**: 3小时
   - **验收标准**: 数据库操作正常
+  - **实际完成时间**: 2025年7月 (数据库操作封装完成)
+  - **完成详情**:
+    - 创建完整的DatabaseService类，包含20个核心数据库操作方法
+    - 实现分页查询、筛选、统计、用户管理、收藏管理等功能
+    - 完善的类型安全和错误处理
+    - 创建测试脚本验证所有功能正常
+    - 构建测试通过，代码质量良好
+  - **测试验证**: 
+    - 数据库连接健康检查通过
+    - 创建测试数据成功（4条内容，1个用户，1个AI分析，1个收藏）
+    - 所有查询和统计方法正常工作
+    - TypeScript类型检查通过
 
 ### 📅 第2周：认证系统与API开发
 
