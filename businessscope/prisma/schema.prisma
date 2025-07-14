@@ -1,0 +1,204 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("POSTGRES_PRISMA_URL")
+}
+
+// 原始内容表
+model RawContent {
+  id            String   @id @default(cuid())
+  platform      String   // 'twitter' | 'reddit' | 'hackernews' | 'producthunt'
+  originalUrl   String?  @map("original_url")
+  title         String?
+  content       String?  @db.Text
+  author        String?
+  publishedAt   DateTime? @map("published_at")
+  collectedAt   DateTime @default(now()) @map("collected_at")
+  likesCount    Int      @default(0) @map("likes_count")
+  sharesCount   Int      @default(0) @map("shares_count")
+  commentsCount Int      @default(0) @map("comments_count")
+  viewCount     Int      @default(0) @map("view_count")
+  tags          String?
+  status        String   @default("待处理") // '待处理' | '已分析' | '已忽略' | '已删除'
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  
+  // 关系
+  analysis      AIAnalysis?
+  bookmarks     Bookmark[]
+  activities    UserActivity[]
+  
+  // 索引
+  @@index([platform])
+  @@index([status])
+  @@index([collectedAt])
+  @@index([publishedAt])
+  @@index([likesCount])
+  @@index([platform, status])
+  @@map("raw_content")
+}
+
+// AI分析结果表
+model AIAnalysis {
+  id              String   @id @default(cuid())
+  contentId       String   @unique @map("content_id")
+  sentimentLabel  String?  @map("sentiment_label") // 'positive' | 'negative' | 'neutral'
+  sentimentScore  Float?   @map("sentiment_score") // 0-1
+  mainTopic       String?  @map("main_topic")
+  keywords        String[] @default([])
+  businessRate    Int?     @map("business_rate") // 0-100
+  contentRate     Int?     @map("content_rate") // 0-100
+  finalRate       String?  @map("final_rate") // 'A' | 'B' | 'C' | 'D'
+  reason          String?  @db.Text
+  confidence      Float?   // 0-1 AI分析置信度
+  analyzedAt      DateTime @default(now()) @map("analyzed_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  // 关系
+  content RawContent @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  
+  // 索引
+  @@index([finalRate])
+  @@index([businessRate])
+  @@index([sentimentLabel])
+  @@index([analyzedAt])
+  @@map("ai_analysis")
+}
+
+// 用户表
+model User {
+  id                  String   @id @default(cuid())
+  email               String   @unique
+  name                String?
+  image               String?
+  subscriptionType    String   @default("free") @map("subscription_type") // 'free' | 'professional' | 'enterprise'
+  dailyUsageCount     Int      @default(0) @map("daily_usage_count")
+  monthlyUsageCount   Int      @default(0) @map("monthly_usage_count")
+  usageLimit          Int      @default(1000) @map("usage_limit")
+  lastActiveAt        DateTime? @map("last_active_at")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+  
+  // 关系
+  accounts    Account[]
+  sessions    Session[]
+  bookmarks   Bookmark[]
+  activities  UserActivity[]
+  
+  // 索引
+  @@index([email])
+  @@index([subscriptionType])
+  @@index([lastActiveAt])
+  @@map("users")
+}
+
+// NextAuth账户表
+model Account {
+  id                String  @id @default(cuid())
+  userId            String  @map("user_id")
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+// NextAuth会话表
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+// 验证令牌表
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// 用户收藏表
+model Bookmark {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  contentId String   @map("content_id")
+  notes     String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  // 关系
+  user    User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content RawContent @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  
+  // 约束
+  @@unique([userId, contentId])
+  @@index([userId])
+  @@index([contentId])
+  @@index([createdAt])
+  @@map("bookmarks")
+}
+
+// 用户活动日志表
+model UserActivity {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  action    String   // 'view' | 'bookmark' | 'search' | 'filter' | 'export'
+  contentId String?  @map("content_id")
+  metadata  Json?    // 存储额外的活动数据
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  // 关系
+  user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content RawContent? @relation(fields: [contentId], references: [id], onDelete: SetNull)
+  
+  // 索引
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@index([userId, action])
+  @@map("user_activities")
+}
+
+// 系统配置表 (可选，用于存储系统级别的配置)
+model SystemConfig {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String   @db.Text
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  @@index([key])
+  @@map("system_configs")
+}
