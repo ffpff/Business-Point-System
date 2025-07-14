@@ -176,3 +176,40 @@ export interface SessionUser extends User {
   accessToken?: string
   refreshToken?: string
 }
+
+// NextAuth类型扩展
+declare module "next-auth" {
+  interface Session {
+    user: {
+      id: string
+      email: string
+      name?: string
+      image?: string
+      subscriptionType?: string
+      usageLimit?: number
+      dailyUsageCount?: number
+      monthlyUsageCount?: number
+    }
+  }
+
+  interface User {
+    id: string
+    email: string
+    name?: string
+    image?: string
+    subscriptionType?: string
+    usageLimit?: number
+    dailyUsageCount?: number
+    monthlyUsageCount?: number
+  }
+}
+
+declare module "next-auth/jwt" {
+  interface JWT {
+    id: string
+    subscriptionType?: string
+    usageLimit?: number
+    dailyUsageCount?: number
+    monthlyUsageCount?: number
+  }
+}

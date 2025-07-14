@@ -381,7 +381,7 @@
 
 #### Day 8-10：NextAuth.js认证系统（15小时）🔴
 
-- [ ] **任务4.1** NextAuth.js基础配置⏭️
+- [x] **任务4.1** NextAuth.js基础配置✅
   ```typescript
   // src/lib/auth.ts
   import { NextAuthOptions } from "next-auth"
@@ -408,6 +408,38 @@
   ```
   - **时间预估**: 6小时
   - **验收标准**: NextAuth配置正确
+  - **实际完成时间**: 2025年7月 (NextAuth.js基础配置完成)
+  - **完成详情**:
+    - 创建完整的NextAuth配置文件，支持邮箱密码和Google OAuth登录
+    - 配置Prisma适配器，支持数据库会话管理
+    - 实现用户注册API接口，包含密码加密和验证
+    - 配置认证中间件，保护敏感路由
+    - 扩展NextAuth类型定义，支持用户订阅信息
+    - 构建测试通过，类型安全检查完成
+  - **技术实现**:
+    - 支持Credentials和Google两种登录方式
+    - 使用bcryptjs进行密码哈希
+    - 集成Zod进行表单验证
+    - JWT会话策略，包含用户扩展信息
+    - 完善的错误处理和类型安全
+  - **⚠️ 重要问题解决记录**:
+    - **问题**: 注册API返回失败但数据库正确插入用户数据
+    - **现象**: API响应`{"success":false,"error":"注册失败，请稍后重试"}`，但用户表中能看到新注册的用户
+    - **根本原因分析**:
+      1. **数据库Schema不同步**: Prisma schema添加了`hashedPassword`字段，但未成功推送到实际数据库
+      2. **类型值不匹配**: 代码使用`subscriptionType: "免费版"`，但schema期望`"free"`
+      3. **Supabase表字段混合**: 发现users表混合了Supabase内置auth字段和应用自定义字段
+    - **错误信息**: `The column 'users.hashed_password' does not exist in the current database`
+    - **解决步骤**:
+      1. 修复subscriptionType值：`"免费版"` → `"free"`
+      2. 手动在数据库添加缺失的hashed_password列
+      3. 重新生成Prisma客户端：`npx prisma generate`
+      4. 验证API功能正常
+    - **最终结果**: ✅ 注册API正常返回成功响应，登录功能也正常工作
+    - **经验总结**: 
+      - 当出现"API失败但数据库有数据"时，通常是数据写入成功但后续步骤失败
+      - 重点检查：数据库schema同步、字段类型匹配、环境变量配置
+      - 建议开发时实时监控服务器日志，快速定位问题根源
 
 - [ ] **任务4.2** API Routes认证接口⏭️
   ```typescript
@@ -859,3 +891,48 @@
 - 收集用户反馈，快速迭代
 
 记住：**MVP的目标是验证产品市场匹配度，功能完整比功能完美更重要！**
+
+---
+
+## 🐛 重要问题解决记录
+
+### 问题1: 认证API返回失败但数据库正确插入 (2025-07-14)
+
+**问题描述**: 注册API返回`{"success":false,"error":"注册失败，请稍后重试"}`，但用户数据已成功插入数据库
+
+**技术背景**: NextAuth.js + Prisma + Supabase PostgreSQL
+
+**排查过程**:
+1. 发现错误日志：`The column 'users.hashed_password' does not exist in the current database`
+2. 检查Prisma schema与实际数据库结构不一致
+3. 发现subscriptionType类型值不匹配问题
+
+**根本原因**:
+- 数据库schema未同步：Prisma添加了hashedPassword字段但未推送到数据库
+- 枚举值不匹配：代码使用"免费版"，schema期望"free"  
+- Supabase集成导致的表结构混合
+
+**解决方案**:
+```sql
+-- 手动添加缺失字段
+ALTER TABLE users ADD COLUMN hashed_password TEXT;
+```
+```typescript
+// 修复枚举值
+subscriptionType: "free" // 而不是 "免费版"
+```
+```bash
+# 重新生成客户端
+npx prisma generate
+```
+
+**经验教训**:
+- 修改Prisma schema后必须确保数据库推送成功
+- 枚举类型值要与schema定义严格一致
+- "API失败但数据有插入"通常说明写入成功但后续验证失败
+- 实时监控服务器日志是快速定位问题的关键
+
+**预防措施**:
+- 每次schema变更后运行`npx prisma db push`验证
+- 使用TypeScript枚举替代字符串硬编码
+- 配置数据库migration脚本自动化同步

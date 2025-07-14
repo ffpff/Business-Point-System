@@ -78,6 +78,7 @@ model User {
   email               String   @unique
   name                String?
   image               String?
+  hashedPassword      String?  @map("hashed_password")
   subscriptionType    String   @default("free") @map("subscription_type") // 'free' | 'professional' | 'enterprise'
   dailyUsageCount     Int      @default(0) @map("daily_usage_count")
   monthlyUsageCount   Int      @default(0) @map("monthly_usage_count")
