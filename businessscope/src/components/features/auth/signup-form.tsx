@@ -3,8 +3,8 @@
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { signIn, getSession } from 'next-auth/react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { signIn } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Eye, EyeOff, Loader2 } from 'lucide-react'
 
@@ -12,75 +12,89 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { signInSchema, type SignInFormData } from '@/lib/validations'
+import { signUpSchema, type SignUpFormData } from '@/lib/validations'
 import { toast } from 'sonner'
 
-export function SignInForm() {
+export function SignUpForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const callbackUrl = searchParams.get('callbackUrl') || '/dashboard'
 
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
     setError,
-  } = useForm<SignInFormData>({
-    resolver: zodResolver(signInSchema),
+  } = useForm<SignUpFormData>({
+    resolver: zodResolver(signUpSchema),
   })
 
-  const onSubmit = async (data: SignInFormData) => {
+  const onSubmit = async (data: SignUpFormData) => {
     try {
       setIsLoading(true)
 
-      const result = await signIn('credentials', {
+      // 调用注册API
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: data.email,
+          password: data.password,
+          name: data.name,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!result.success) {
+        if (result.error === '邮箱已被注册') {
+          setError('email', { message: '该邮箱已被注册，请使用其他邮箱或直接登录' })
+        } else {
+          toast.error(result.error || '注册失败，请稍后重试')
+        }
+        return
+      }
+
+      // 注册成功，自动登录
+      toast.success('注册成功！正在为您登录...')
+      
+      const signInResult = await signIn('credentials', {
         email: data.email,
         password: data.password,
         redirect: false,
       })
 
-      if (result?.error) {
-        if (result.error === 'CredentialsSignin') {
-          setError('root', { message: '邮箱或密码错误，请检查后重试' })
-        } else {
-          setError('root', { message: '登录失败，请稍后重试' })
-        }
-        return
-      }
-
-      if (result?.ok) {
-        toast.success('登录成功！')
-        
-        // 等待会话更新
-        await getSession()
-        
-        // 跳转到回调URL或仪表板
-        router.push(callbackUrl)
-        router.refresh()
+      if (signInResult?.error) {
+        toast.error('注册成功但登录失败，请手动登录')
+        router.push('/signin')
+      } else {
+        // 登录成功，跳转到仪表板
+        router.push('/dashboard')
       }
     } catch (error) {
-      console.error('登录错误:', error)
-      setError('root', { message: '网络错误，请检查网络连接后重试' })
+      console.error('注册错误:', error)
+      toast.error('网络错误，请检查网络连接后重试')
     } finally {
       setIsLoading(false)
     }
   }
 
-  const handleGoogleSignIn = async () => {
+  const handleGoogleSignUp = async () => {
     try {
       setIsLoading(true)
       const result = await signIn('google', {
-        callbackUrl,
+        callbackUrl: '/dashboard',
       })
       
       if (result?.error) {
-        toast.error('Google 登录失败，请稍后重试')
+        toast.error('Google 注册失败，请稍后重试')
       }
     } catch (error) {
-      console.error('Google登录错误:', error)
-      toast.error('Google 登录失败，请稍后重试')
+      console.error('Google注册错误:', error)
+      toast.error('Google 注册失败，请稍后重试')
     } finally {
       setIsLoading(false)
     }
@@ -89,19 +103,27 @@ export function SignInForm() {
   return (
     <Card className="w-full max-w-md">
       <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl font-bold">登录</CardTitle>
+        <CardTitle className="text-2xl font-bold">创建账户</CardTitle>
         <CardDescription>
-          输入您的邮箱和密码来登录账户
+          输入您的信息来创建新账户
         </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          {/* 根错误 */}
-          {errors.root && (
-            <div className="bg-red-50 border border-red-200 rounded-md p-3">
-              <p className="text-sm text-red-600">{errors.root.message}</p>
-            </div>
-          )}
+          {/* 姓名 */}
+          <div className="space-y-2">
+            <Label htmlFor="name">姓名 (可选)</Label>
+            <Input
+              id="name"
+              type="text"
+              placeholder="输入您的姓名"
+              {...register('name')}
+              disabled={isLoading}
+            />
+            {errors.name && (
+              <p className="text-sm text-red-600">{errors.name.message}</p>
+            )}
+          </div>
 
           {/* 邮箱 */}
           <div className="space-y-2">
@@ -148,9 +170,44 @@ export function SignInForm() {
             {errors.password && (
               <p className="text-sm text-red-600">{errors.password.message}</p>
             )}
+            <p className="text-xs text-gray-500">
+              密码需包含大小写字母和数字，至少6位字符
+            </p>
           </div>
 
-          {/* 登录按钮 */}
+          {/* 确认密码 */}
+          <div className="space-y-2">
+            <Label htmlFor="confirmPassword">确认密码</Label>
+            <div className="relative">
+              <Input
+                id="confirmPassword"
+                type={showConfirmPassword ? 'text' : 'password'}
+                placeholder="再次输入密码"
+                {...register('confirmPassword')}
+                disabled={isLoading}
+                className="pr-10"
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                disabled={isLoading}
+              >
+                {showConfirmPassword ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+            {errors.confirmPassword && (
+              <p className="text-sm text-red-600">{errors.confirmPassword.message}</p>
+            )}
+          </div>
+
+          {/* 注册按钮 */}
           <Button
             type="submit"
             className="w-full"
@@ -159,22 +216,12 @@ export function SignInForm() {
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                登录中...
+                注册中...
               </>
             ) : (
-              '登录'
+              '创建账户'
             )}
           </Button>
-
-          {/* 忘记密码 */}
-          <div className="text-center">
-            <Link
-              href="/forgot-password"
-              className="text-sm text-blue-600 hover:text-blue-500"
-            >
-              忘记密码？
-            </Link>
-          </div>
 
           {/* 分隔线 */}
           <div className="relative">
@@ -188,12 +235,12 @@ export function SignInForm() {
             </div>
           </div>
 
-          {/* Google 登录 */}
+          {/* Google 注册 */}
           <Button
             type="button"
             variant="outline"
             className="w-full"
-            onClick={handleGoogleSignIn}
+            onClick={handleGoogleSignUp}
             disabled={isLoading}
           >
             {isLoading ? (
@@ -218,18 +265,18 @@ export function SignInForm() {
                 />
               </svg>
             )}
-            使用 Google 登录
+            使用 Google 注册
           </Button>
         </form>
 
-        {/* 注册链接 */}
+        {/* 登录链接 */}
         <div className="mt-6 text-center text-sm">
-          <span className="text-gray-600">还没有账户？</span>{' '}
+          <span className="text-gray-600">已有账户？</span>{' '}
           <Link
-            href="/signup"
+            href="/signin"
             className="text-blue-600 hover:text-blue-500 font-medium"
           >
-            立即注册
+            立即登录
           </Link>
         </div>
       </CardContent>

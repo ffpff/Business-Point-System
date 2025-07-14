@@ -107,7 +107,7 @@ export const authOptions: NextAuthOptions = {
                 email: user.email!,
                 name: user.name || profile?.name || "",
                 image: user.image || (profile as { picture?: string })?.picture || "",
-                subscriptionType: "免费版",
+                subscriptionType: "free",
                 usageLimit: 50,
                 dailyUsageCount: 0,
                 monthlyUsageCount: 0,
