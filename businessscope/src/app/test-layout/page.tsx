@@ -1,8 +1,9 @@
+import { Suspense } from 'react'
 import { AppLayout } from '@/components/layout/app-layout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 
-export default function TestLayoutPage() {
+function TestLayoutContent() {
   return (
     <AppLayout showSidebar={true}>
       <div className="space-y-6">
@@ -19,13 +20,20 @@ export default function TestLayoutPage() {
               <CardTitle>Header组件</CardTitle>
             </CardHeader>
             <CardContent>
-              <ul className="space-y-2 text-sm">
-                <li>✅ 响应式导航菜单</li>
-                <li>✅ 搜索框（桌面端）</li>
-                <li>✅ 用户头像和下拉菜单</li>
-                <li>✅ 移动端汉堡菜单</li>
-                <li>✅ 登录/注册按钮</li>
-              </ul>
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  ✅ 响应式导航栏
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  ✅ 用户认证状态
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  ✅ 搜索功能
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  ✅ 移动端适配
+                </p>
+              </div>
             </CardContent>
           </Card>
 
@@ -34,69 +42,78 @@ export default function TestLayoutPage() {
               <CardTitle>Sidebar组件</CardTitle>
             </CardHeader>
             <CardContent>
-              <ul className="space-y-2 text-sm">
-                <li>✅ 平台筛选器</li>
-                <li>✅ AI评分筛选</li>
-                <li>✅ 情感倾向筛选</li>
-                <li>✅ 评分滑块</li>
-                <li>✅ 时间范围选择</li>
-                <li>✅ 分析状态筛选</li>
-                <li>✅ 筛选条件摘要</li>
-              </ul>
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  ✅ 多维度筛选
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  ✅ URL参数同步
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  ✅ 响应式设计
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  ✅ 筛选条件重置
+                </p>
+              </div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle>响应式设计</CardTitle>
+              <CardTitle>AppLayout组件</CardTitle>
             </CardHeader>
             <CardContent>
-              <ul className="space-y-2 text-sm">
-                <li>✅ 桌面端：侧边栏固定显示</li>
-                <li>✅ 移动端：Sheet弹出侧边栏</li>
-                <li>✅ 搜索框响应式适配</li>
-                <li>✅ 导航菜单响应式</li>
-                <li>✅ 容器边距和间距</li>
-              </ul>
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  ✅ 统一布局管理
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  ✅ 条件渲染侧边栏
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  ✅ 响应式适配
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  ✅ 内容区域布局
+                </p>
+              </div>
             </CardContent>
           </Card>
         </div>
 
         <div className="space-y-4">
-          <h2 className="text-2xl font-semibold">功能测试</h2>
-          
+          <h2 className="text-2xl font-semibold">交互测试</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Card>
               <CardHeader>
-                <CardTitle>Header测试</CardTitle>
+                <CardTitle>搜索功能测试</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <Button variant="outline" className="w-full">
-                  测试搜索功能
-                </Button>
-                <Button variant="outline" className="w-full">
-                  测试用户菜单
-                </Button>
-                <Button variant="outline" className="w-full">
-                  测试移动端菜单
-                </Button>
+              <CardContent>
+                <div className="space-y-2">
+                  <Button variant="outline" className="w-full">
+                    测试搜索框
+                  </Button>
+                  <p className="text-xs text-muted-foreground">
+                    尝试在Header中使用搜索功能
+                  </p>
+                </div>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle>Sidebar测试</CardTitle>
+                <CardTitle>筛选器测试</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <Button variant="outline" className="w-full">
-                  测试平台筛选
-                </Button>
-                <Button variant="outline" className="w-full">
-                  测试评分筛选
-                </Button>
-                <Button variant="outline" className="w-full">
-                  测试重置功能
-                </Button>
+              <CardContent>
+                <div className="space-y-2">
+                  <Button variant="outline" className="w-full">
+                    测试筛选器
+                  </Button>
+                  <p className="text-xs text-muted-foreground">
+                    尝试使用左侧筛选器功能
+                  </p>
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -106,7 +123,7 @@ export default function TestLayoutPage() {
           <h3 className="text-lg font-semibold mb-3">测试说明</h3>
           <div className="space-y-2 text-sm text-muted-foreground">
             <p>1. 在桌面端（≥1024px）：侧边栏应该固定显示在左侧</p>
-            <p>2. 在移动端（&lt;1024px）：侧边栏应该隐藏，通过"筛选器"按钮打开</p>
+            <p>2. 在移动端（&lt;1024px）：侧边栏应该隐藏，通过&quot;筛选器&quot;按钮打开</p>
             <p>3. Header在所有设备上都应该显示完整功能</p>
             <p>4. 搜索框在大屏幕显示，小屏幕通过搜索图标打开</p>
             <p>5. 用户认证状态会影响Header右侧显示内容</p>
@@ -114,5 +131,13 @@ export default function TestLayoutPage() {
         </div>
       </div>
     </AppLayout>
+  )
+}
+
+export default function TestLayoutPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <TestLayoutContent />
+    </Suspense>
   )
 }
