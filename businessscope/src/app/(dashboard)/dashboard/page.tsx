@@ -1,4 +1,5 @@
 import { Metadata } from 'next'
+import Link from 'next/link'
 import { getServerSession } from 'next-auth'
 import { redirect } from 'next/navigation'
 import { authOptions } from '@/lib/auth'
@@ -62,18 +63,18 @@ export default async function DashboardPage() {
           </h2>
           <div className="space-y-4">
             <div className="flex flex-col sm:flex-row gap-4">
-              <a
+              <Link
                 href="/opportunities"
                 className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
                 浏览最新机会
-              </a>
-              <a
+              </Link>
+              <Link
                 href="/bookmarks"
                 className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
                 查看我的收藏
-              </a>
+              </Link>
             </div>
           </div>
         </div>

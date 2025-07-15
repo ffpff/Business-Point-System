@@ -16,6 +16,7 @@ type OpportunityWithAnalysis = Prisma.RawContentGetPayload<{
 interface OpportunityCardProps {
   opportunity: OpportunityWithAnalysis
   showPlatformBadge?: boolean
+  compact?: boolean
 }
 
 const platformConfig = {
@@ -34,7 +35,7 @@ const getRatingColor = (rate: string) => {
   }
 }
 
-export function OpportunityCard({ opportunity, showPlatformBadge = true }: OpportunityCardProps) {
+export function OpportunityCard({ opportunity, showPlatformBadge = true, compact = false }: OpportunityCardProps) {
   const platformInfo = platformConfig[opportunity.platform as keyof typeof platformConfig] || platformConfig.twitter
   const publishedTime = opportunity.publishedAt || opportunity.createdAt
   
@@ -70,12 +71,15 @@ export function OpportunityCard({ opportunity, showPlatformBadge = true }: Oppor
       </CardHeader>
       
       <CardContent className="pt-0">
-        <p className="text-sm text-muted-foreground line-clamp-3 mb-4 leading-relaxed">
-          {opportunity.content}
+        <p className={`text-sm text-muted-foreground leading-relaxed mb-4 ${compact ? 'line-clamp-2' : 'line-clamp-3'}`}>
+          {compact && opportunity.content && opportunity.content.length > 100 
+            ? `${opportunity.content.slice(0, 100)}...` 
+            : opportunity.content
+          }
         </p>
         
         {/* AI分析信息 */}
-        {opportunity.analysis && (
+        {opportunity.analysis && !compact && (
           <div className="mb-4">
             {opportunity.analysis.mainTopic && (
               <div className="flex items-center gap-1 mb-2">
@@ -116,10 +120,12 @@ export function OpportunityCard({ opportunity, showPlatformBadge = true }: Oppor
           </div>
           
           <div className="flex space-x-2">
-            <Button variant="ghost" size="sm" className="h-8 px-3">
-              <Bookmark className="w-3 h-3 mr-1" />
-              收藏
-            </Button>
+            {!compact && (
+              <Button variant="ghost" size="sm" className="h-8 px-3">
+                <Bookmark className="w-3 h-3 mr-1" />
+                收藏
+              </Button>
+            )}
             <Link href={`/opportunities/${opportunity.id}`}>
               <Button variant="outline" size="sm" className="h-8 px-3">
                 <ExternalLink className="w-3 h-3 mr-1" />
