@@ -25,7 +25,6 @@ export function SignUpForm() {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-    setError,
   } = useForm<SignUpFormData>({
     resolver: zodResolver(signUpSchema),
   })
@@ -50,11 +49,7 @@ export function SignUpForm() {
       const result = await response.json()
 
       if (!result.success) {
-        if (result.error === '邮箱已被注册') {
-          setError('email', { message: '该邮箱已被注册，请使用其他邮箱或直接登录' })
-        } else {
-          toast.error(result.error || '注册失败，请稍后重试')
-        }
+        toast.error(result.error || '注册失败，请稍后重试')
         return
       }
 

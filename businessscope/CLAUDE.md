@@ -17,7 +17,10 @@ npm run lint                   # Run ESLint
 
 # Database Operations
 npm run db:generate            # Generate Prisma client
-npm run db:push               # Push schema changes to database
+npm run db:push               # Push schema changes to database (新版本，解决环境变量问题)
+npm run db:verify             # 验证数据库schema状态
+npm run db:sync               # 手动同步schema（fallback方案）
+npm run db:deploy             # 完整数据库部署流程
 npm run db:studio             # Open Prisma Studio
 
 # Testing Database Connections
@@ -25,6 +28,12 @@ npm run test:db               # Test PostgreSQL connection (Node.js)
 npm run test:redis            # Test Redis connection (Node.js)  
 npm run test:connections      # Test all connections (TypeScript)
 npm run test:prisma          # Test Prisma operations (TypeScript)
+
+# Advanced Schema Management
+node scripts/schema-manager.js snapshot  # 生成schema快照
+node scripts/schema-manager.js compare   # 比较schema差异  
+node scripts/schema-manager.js fix       # 自动修复schema
+node scripts/schema-manager.js health    # 数据库健康检查
 ```
 
 ## Architecture Overview
@@ -202,3 +211,63 @@ result.opportunities.forEach((item: OpportunityWithAnalysis) => {
 2. 避免使用宽泛的 `any` 类型
 3. 利用 TypeScript 严格模式捕获类型错误
 4. 构建时会进行类型检查，确保生产环境类型安全
+
+## 数据库管理最佳实践
+
+### 数据库推送问题解决方案
+
+**问题背景**: 原生 `prisma db push` 在此项目中经常遇到环境变量加载和连接超时问题。
+
+**解决方案**: 实施了分层的数据库管理工具链:
+
+1. **基础工具** (`scripts/db-manager.js`)
+   - 统一环境变量加载 (使用 dotenv-cli)
+   - 智能fallback机制 (推送失败时自动执行手动同步)
+   - 完整的部署流程验证
+
+2. **高级工具** (`scripts/schema-manager.js`)
+   - Schema快照和版本管理
+   - 自动差异检测和修复
+   - 数据库健康检查
+
+### 推荐工作流程
+
+**开发环境Schema变更:**
+```bash
+# 1. 修改 prisma/schema.prisma
+# 2. 执行部署流程
+npm run db:deploy
+
+# 3. 如果推送失败，使用手动同步
+npm run db:sync
+
+# 4. 验证结果
+npm run db:verify
+```
+
+**生产环境部署:**
+```bash
+# 1. 生成schema快照 (用于回滚)
+node scripts/schema-manager.js snapshot
+
+# 2. 健康检查
+node scripts/schema-manager.js health
+
+# 3. 执行部署
+npm run db:deploy
+```
+
+### 常见问题处理
+
+1. **环境变量加载失败**: 所有数据库脚本已配置自动加载 `.env.local`
+2. **连接超时**: 实施了自动fallback到手动SQL执行
+3. **Schema不同步**: 使用 `schema-manager.js` 进行自动检测和修复
+
+### 新增安全字段
+
+项目已完成账户锁定机制的schema变更:
+- `login_failed_count`: 登录失败计数
+- `locked_at`: 锁定时间戳  
+- `lock_until`: 锁定过期时间
+
+这些字段已通过手动SQL方式添加，确保了向后兼容性。

@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { authOptions } from '@/lib/auth'
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // 从authOptions中提取providers信息
     const providers = authOptions.providers.reduce((acc, provider) => {
@@ -13,7 +13,13 @@ export async function GET(request: NextRequest) {
         callbackUrl: `/api/auth/callback/${provider.id}`,
       }
       return acc
-    }, {} as Record<string, any>)
+    }, {} as Record<string, {
+      id: string
+      name: string
+      type: string
+      signinUrl: string
+      callbackUrl: string
+    }>)
 
     return NextResponse.json(providers)
   } catch (error) {

@@ -6,10 +6,12 @@ import { prisma } from "./db"
 import bcrypt from "bcryptjs"
 import { z } from "zod"
 import type { Adapter } from "next-auth/adapters"
+import { authLimiter } from "./rate-limiter"
+import { AccountLockService } from "./account-lock"
 
 const loginSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(6),
+  password: z.string().min(6).max(50),
 })
 
 export const authOptions: NextAuthOptions = {
@@ -21,8 +23,17 @@ export const authOptions: NextAuthOptions = {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" }
       },
-      async authorize(credentials) {
+      async authorize(credentials, req) {
         if (!credentials?.email || !credentials?.password) {
+          return null
+        }
+
+        // 速率限制检查
+        const forwarded = req.headers?.["x-forwarded-for"]
+        const ip = forwarded ? (Array.isArray(forwarded) ? forwarded[0] : forwarded.split(",")[0]) : req.headers?.["x-real-ip"] || "unknown"
+        
+        const rateLimitResult = authLimiter.check(ip as string)
+        if (!rateLimitResult.success) {
           return null
         }
 
@@ -33,19 +44,34 @@ export const authOptions: NextAuthOptions = {
 
         const { email, password } = validatedFields.data
 
+        // 检查账户是否被锁定
+        const isLocked = await AccountLockService.isAccountLocked(email)
+        if (isLocked) {
+          return null
+        }
+
         const user = await prisma.user.findUnique({
           where: { email }
         })
 
         if (!user || !user.hashedPassword) {
+          // 记录失败尝试（如果用户存在）
+          if (user) {
+            await AccountLockService.recordFailedLogin(email)
+          }
           return null
         }
 
         const passwordsMatch = await bcrypt.compare(password, user.hashedPassword)
 
         if (!passwordsMatch) {
+          // 记录失败尝试
+          await AccountLockService.recordFailedLogin(email)
           return null
         }
+
+        // 成功登录，清除失败记录
+        await AccountLockService.recordSuccessfulLogin(email)
 
         return {
           id: user.id,
@@ -60,12 +86,15 @@ export const authOptions: NextAuthOptions = {
       GoogleProvider({
         clientId: process.env.GOOGLE_CLIENT_ID,
         clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-        allowDangerousEmailAccountLinking: true,
       })
     ] : []),
   ],
   session: {
     strategy: "jwt",
+    maxAge: 7 * 24 * 60 * 60, // 7天过期
+  },
+  jwt: {
+    maxAge: 7 * 24 * 60 * 60, // 7天过期
   },
   pages: {
     signIn: "/signin",
@@ -125,7 +154,9 @@ export const authOptions: NextAuthOptions = {
             })
           }
         } catch (error) {
-          console.error("Error handling Google sign-in:", error)
+          if (process.env.NODE_ENV === "development") {
+            console.error("Error handling Google sign-in:", error)
+          }
           return false
         }
       }
