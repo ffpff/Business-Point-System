@@ -5,11 +5,14 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { OpportunityCard } from './opportunity-card'
 import { PaginationControls } from './pagination-controls'
 import { LoadingSkeleton } from './loading-skeleton'
-import { Alert, AlertDescription } from '@/components/ui/alert'
+import { LoadingSpinner } from '@/components/ui/loading-spinner'
+import { ErrorMessage, EmptyState } from '@/components/ui/error-message'
+import { ErrorBoundary } from '@/components/ui/error-boundary'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { RefreshCw, Search, Filter } from 'lucide-react'
-import { useOpportunities } from '@/hooks/use-api'
+import { useOpportunities, useErrorHandler } from '@/hooks/use-api'
 import type { OpportunitiesQueryParams } from '@/lib/api'
 import type { Platform, FinalRate, SentimentLabel } from '@/types'
 import type { Prisma } from '@prisma/client'
@@ -21,6 +24,7 @@ type OpportunityCardType = Prisma.RawContentGetPayload<{
 function OpportunitiesListContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { handleError } = useErrorHandler()
   
   // 将URL搜索参数转换为API查询参数
   const queryParams = useMemo((): OpportunitiesQueryParams => {
@@ -96,9 +100,11 @@ function OpportunitiesListContent() {
   const { 
     opportunities, 
     loading, 
+    isValidating,
     error, 
     meta, 
-    refetch 
+    refetch,
+    retry 
   } = useOpportunities(queryParams)
 
   const handlePageChange = (page: number) => {
@@ -108,7 +114,21 @@ function OpportunitiesListContent() {
   }
 
   const handleRefresh = () => {
-    refetch()
+    try {
+      refetch()
+    } catch (err) {
+      handleError(err, 'opportunities-refresh', {
+        customMessage: '刷新数据失败，请稍后重试'
+      })
+    }
+  }
+  
+  const handleRetry = () => {
+    try {
+      retry()
+    } catch (err) {
+      handleError(err, 'opportunities-retry')
+    }
   }
 
   const clearFilters = () => {
@@ -131,17 +151,62 @@ function OpportunitiesListContent() {
 
   if (error) {
     return (
-      <div className="space-y-4">
-        <Alert variant="destructive">
-          <AlertDescription>
-            {error}
-          </AlertDescription>
-        </Alert>
-        <Button onClick={handleRefresh} variant="outline">
-          <RefreshCw className="w-4 h-4 mr-2" />
-          重试
-        </Button>
-      </div>
+      <ErrorMessage
+        error={error}
+        title="加载机会列表失败"
+        onRetry={handleRetry}
+        retryText={isValidating ? "重试中..." : "重试"}
+        description="请检查网络连接或稍后再试"
+        className="my-6"
+      />
+    )
+  }
+  
+  // 空状态处理
+  if (!opportunities || opportunities.length === 0) {
+    const hasSearchQuery = searchParams.get('q')
+    const hasFilters = hasActiveFilters
+    
+    if (hasSearchQuery || hasFilters) {
+      return (
+        <EmptyState
+          title="未找到匹配的机会"
+          description={
+            hasSearchQuery 
+              ? `没有找到包含 "${hasSearchQuery}" 的商业机会` 
+              : "当前筛选条件下没有找到相关内容"
+          }
+          action={
+            <div className="space-x-2">
+              {hasFilters && (
+                <Button variant="outline" onClick={clearFilters}>
+                  <Filter className="w-4 h-4 mr-2" />
+                  清除筛选
+                </Button>
+              )}
+              <Button onClick={handleRefresh}>
+                <RefreshCw className="w-4 h-4 mr-2" />
+                刷新
+              </Button>
+            </div>
+          }
+          className="my-12"
+        />
+      )
+    }
+    
+    return (
+      <EmptyState
+        title="暂无商业机会"
+        description="系统正在收集最新的商业机会，请稍后查看"
+        action={
+          <Button onClick={handleRefresh}>
+            <RefreshCw className="w-4 h-4 mr-2" />
+            刷新页面
+          </Button>
+        }
+        className="my-12"
+      />
     )
   }
 
@@ -164,6 +229,14 @@ function OpportunitiesListContent() {
         </div>
         
         <div className="flex items-center space-x-2">
+          {/* 验证中指示器 */}
+          {isValidating && (
+            <div className="text-xs text-muted-foreground flex items-center">
+              <LoadingSpinner size="sm" className="mr-2" />
+              更新中...
+            </div>
+          )}
+          
           {hasActiveFilters && (
             <Button 
               variant="outline" 
@@ -246,8 +319,16 @@ function OpportunitiesListContent() {
 
 export function OpportunitiesList() {
   return (
-    <Suspense fallback={<LoadingSkeleton />}>
-      <OpportunitiesListContent />
-    </Suspense>
+    <ErrorBoundary 
+      onError={(error, errorInfo) => {
+        console.error('OpportunitiesList Error:', error, errorInfo)
+        // 这里可以集成错误报告服务
+      }}
+      showDetails={process.env.NODE_ENV === 'development'}
+    >
+      <Suspense fallback={<LoadingSkeleton />}>
+        <OpportunitiesListContent />
+      </Suspense>
+    </ErrorBoundary>
   )
 }

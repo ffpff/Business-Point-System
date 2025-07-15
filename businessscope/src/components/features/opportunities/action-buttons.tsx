@@ -5,9 +5,10 @@ import { Bookmark, BookmarkCheck, Share2, Copy, CheckCircle, AlertCircle } from 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
+import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { toast } from 'sonner'
 import { useSession } from 'next-auth/react'
-import { useBookmark } from '@/hooks/use-api'
+import { useBookmark, useErrorHandler, useOptimisticUpdate } from '@/hooks/use-api'
 import type { OpportunityWithAnalysis } from '@/lib/api'
 
 interface ActionButtonsProps {
@@ -19,6 +20,8 @@ export function ActionButtons({ opportunity, onBookmarkChange }: ActionButtonsPr
   const [shareLoading, setShareLoading] = useState(false)
   const { data: session } = useSession()
   const { toggleBookmark, isBookmarked, loading: bookmarkLoading } = useBookmark()
+  const { handleError } = useErrorHandler()
+  const { performOptimisticUpdate } = useOptimisticUpdate<boolean>()
 
   const handleBookmark = async () => {
     if (!session) {
@@ -28,18 +31,35 @@ export function ActionButtons({ opportunity, onBookmarkChange }: ActionButtonsPr
 
     const currentStatus = opportunity.isBookmarked || isBookmarked(opportunity.id)
     const action = currentStatus ? 'unbookmark' : 'bookmark'
+    const optimisticValue = !currentStatus
     
-    const success = await toggleBookmark(opportunity.id, action)
-    
-    if (success) {
-      const newBookmarkStatus = !currentStatus
-      onBookmarkChange?.(newBookmarkStatus)
-      
-      toast.success(newBookmarkStatus ? '收藏成功' : '已取消收藏', {
-        icon: newBookmarkStatus ? <CheckCircle className="w-4 h-4" /> : undefined
-      })
-    } else {
-      toast.error(action === 'bookmark' ? '收藏失败' : '取消收藏失败')
+    try {
+      await performOptimisticUpdate(
+        optimisticValue,
+        async () => {
+          const success = await toggleBookmark(opportunity.id, action)
+          if (!success) {
+            throw new Error(action === 'bookmark' ? '收藏失败' : '取消收藏失败')
+          }
+          return success
+        },
+        (success) => {
+          if (success) {
+            onBookmarkChange?.(optimisticValue)
+            toast.success(optimisticValue ? '收藏成功' : '已取消收藏', {
+              icon: optimisticValue ? <CheckCircle className="w-4 h-4" /> : undefined
+            })
+          }
+        },
+        (error) => {
+          handleError(error, 'bookmark-action', {
+            customMessage: action === 'bookmark' ? '收藏失败，请重试' : '取消收藏失败，请重试'
+          })
+          toast.error(action === 'bookmark' ? '收藏失败' : '取消收藏失败')
+        }
+      )
+    } catch {
+      // 乐观更新已处理错误
     }
   }
 
@@ -66,12 +86,16 @@ export function ActionButtons({ opportunity, onBookmarkChange }: ActionButtonsPr
       }
     } catch (error) {
       if (error instanceof Error && error.name !== 'AbortError') {
-        console.error('Share error:', error)
+        handleError(error, 'share-action', {
+          customMessage: '分享失败，请重试'
+        })
+        
         // 如果分享失败，尝试复制链接作为备选方案
         try {
           await navigator.clipboard.writeText(window.location.href)
-          toast.success('链接已复制到剪贴板')
-        } catch {
+          toast.success('链接已复制到剪贴板（备用方案）')
+        } catch (copyError) {
+          handleError(copyError, 'copy-fallback')
           toast.error('分享失败')
         }
       }
@@ -87,7 +111,9 @@ export function ActionButtons({ opportunity, onBookmarkChange }: ActionButtonsPr
         icon: <Copy className="w-4 h-4" />
       })
     } catch (error) {
-      console.error('Copy error:', error)
+      handleError(error, 'copy-link', {
+        customMessage: '复制链接失败，请手动复制'
+      })
       toast.error('复制失败')
     }
   }
@@ -125,14 +151,14 @@ export function ActionButtons({ opportunity, onBookmarkChange }: ActionButtonsPr
               className="flex-1 sm:flex-none"
             >
               {bookmarkLoading ? (
-                <div className="w-4 h-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                <LoadingSpinner size="sm" />
               ) : (opportunity.isBookmarked || isBookmarked(opportunity.id)) ? (
                 <BookmarkCheck className="w-4 h-4" />
               ) : (
                 <Bookmark className="w-4 h-4" />
               )}
               <span className="ml-2">
-                {(opportunity.isBookmarked || isBookmarked(opportunity.id)) ? '已收藏' : '收藏'}
+                {bookmarkLoading ? "处理中..." : (opportunity.isBookmarked || isBookmarked(opportunity.id)) ? '已收藏' : '收藏'}
               </span>
             </Button>
 
@@ -143,11 +169,11 @@ export function ActionButtons({ opportunity, onBookmarkChange }: ActionButtonsPr
               className="flex-1 sm:flex-none"
             >
               {shareLoading ? (
-                <div className="w-4 h-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                <LoadingSpinner size="sm" />
               ) : (
                 <Share2 className="w-4 h-4" />
               )}
-              <span className="ml-2">分享</span>
+              <span className="ml-2">{shareLoading ? "分享中..." : "分享"}</span>
             </Button>
           </div>
 
