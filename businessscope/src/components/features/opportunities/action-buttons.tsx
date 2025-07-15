@@ -7,20 +7,18 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { toast } from 'sonner'
 import { useSession } from 'next-auth/react'
-import type { RawContent, AIAnalysis } from '@/types'
+import { useBookmark } from '@/hooks/use-api'
+import type { OpportunityWithAnalysis } from '@/lib/api'
 
 interface ActionButtonsProps {
-  opportunity: RawContent & { 
-    analysis?: AIAnalysis | null
-    isBookmarked?: boolean 
-  }
+  opportunity: OpportunityWithAnalysis & { isBookmarked?: boolean }
   onBookmarkChange?: (isBookmarked: boolean) => void
 }
 
 export function ActionButtons({ opportunity, onBookmarkChange }: ActionButtonsProps) {
-  const [bookmarkLoading, setBookmarkLoading] = useState(false)
   const [shareLoading, setShareLoading] = useState(false)
   const { data: session } = useSession()
+  const { toggleBookmark, isBookmarked, loading: bookmarkLoading } = useBookmark()
 
   const handleBookmark = async () => {
     if (!session) {
@@ -28,32 +26,20 @@ export function ActionButtons({ opportunity, onBookmarkChange }: ActionButtonsPr
       return
     }
 
-    try {
-      setBookmarkLoading(true)
-      
-      const method = opportunity.isBookmarked ? 'DELETE' : 'PUT'
-      const response = await fetch(`/api/opportunities/${opportunity.id}`, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      })
-
-      if (!response.ok) {
-        throw new Error(opportunity.isBookmarked ? '取消收藏失败' : '收藏失败')
-      }
-
-      const newBookmarkStatus = !opportunity.isBookmarked
+    const currentStatus = opportunity.isBookmarked || isBookmarked(opportunity.id)
+    const action = currentStatus ? 'unbookmark' : 'bookmark'
+    
+    const success = await toggleBookmark(opportunity.id, action)
+    
+    if (success) {
+      const newBookmarkStatus = !currentStatus
       onBookmarkChange?.(newBookmarkStatus)
       
       toast.success(newBookmarkStatus ? '收藏成功' : '已取消收藏', {
         icon: newBookmarkStatus ? <CheckCircle className="w-4 h-4" /> : undefined
       })
-    } catch (error) {
-      console.error('Bookmark error:', error)
-      toast.error(error instanceof Error ? error.message : '操作失败')
-    } finally {
-      setBookmarkLoading(false)
+    } else {
+      toast.error(action === 'bookmark' ? '收藏失败' : '取消收藏失败')
     }
   }
 
@@ -135,18 +121,18 @@ export function ActionButtons({ opportunity, onBookmarkChange }: ActionButtonsPr
             <Button
               onClick={handleBookmark}
               disabled={bookmarkLoading}
-              variant={opportunity.isBookmarked ? "default" : "outline"}
+              variant={(opportunity.isBookmarked || isBookmarked(opportunity.id)) ? "default" : "outline"}
               className="flex-1 sm:flex-none"
             >
               {bookmarkLoading ? (
                 <div className="w-4 h-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-              ) : opportunity.isBookmarked ? (
+              ) : (opportunity.isBookmarked || isBookmarked(opportunity.id)) ? (
                 <BookmarkCheck className="w-4 h-4" />
               ) : (
                 <Bookmark className="w-4 h-4" />
               )}
               <span className="ml-2">
-                {opportunity.isBookmarked ? '已收藏' : '收藏'}
+                {(opportunity.isBookmarked || isBookmarked(opportunity.id)) ? '已收藏' : '收藏'}
               </span>
             </Button>
 

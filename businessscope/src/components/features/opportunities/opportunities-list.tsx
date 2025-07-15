@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, Suspense } from 'react'
+import { useMemo, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { OpportunityCard } from './opportunity-card'
 import { PaginationControls } from './pagination-controls'
@@ -9,87 +9,97 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { RefreshCw, Search, Filter } from 'lucide-react'
+import { useOpportunities } from '@/hooks/use-api'
+import type { OpportunitiesQueryParams } from '@/lib/api'
+import type { Platform, FinalRate, SentimentLabel } from '@/types'
 import type { Prisma } from '@prisma/client'
 
-type OpportunityWithAnalysis = Prisma.RawContentGetPayload<{
+type OpportunityCardType = Prisma.RawContentGetPayload<{
   include: { analysis: true }
 }>
-
-interface ApiResponse {
-  success: boolean
-  data: {
-    opportunities: OpportunityWithAnalysis[]
-    total: number
-  }
-  meta: {
-    page: number
-    limit: number
-    total: number
-    totalPages: number
-    hasNextPage: boolean
-    hasPrevPage: boolean
-  }
-}
 
 function OpportunitiesListContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   
-  const [opportunities, setOpportunities] = useState<OpportunityWithAnalysis[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [meta, setMeta] = useState({
-    page: 1,
-    limit: 20,
-    total: 0,
-    totalPages: 0,
-    hasNextPage: false,
-    hasPrevPage: false
-  })
-
-  const fetchOpportunities = useCallback(async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      
-      // Build API URL with current search params
-      const apiUrl = new URL('/api/opportunities', window.location.origin)
-      searchParams.forEach((value, key) => {
-        apiUrl.searchParams.set(key, value)
-      })
-      
-      // Ensure we have a page parameter
-      if (!apiUrl.searchParams.has('page')) {
-        apiUrl.searchParams.set('page', '1')
-      }
-      
-      const response = await fetch(apiUrl.toString())
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-      }
-      
-      const result: ApiResponse = await response.json()
-      
-      if (!result.success) {
-        throw new Error(result.data?.toString() || '获取数据失败')
-      }
-      
-      setOpportunities(result.data.opportunities)
-      setMeta(result.meta)
-      
-    } catch (err) {
-      console.error('Failed to fetch opportunities:', err)
-      setError(err instanceof Error ? err.message : '获取机会列表失败，请稍后重试')
-    } finally {
-      setLoading(false)
+  // 将URL搜索参数转换为API查询参数
+  const queryParams = useMemo((): OpportunitiesQueryParams => {
+    const params: OpportunitiesQueryParams = {}
+    
+    // 分页参数
+    const page = searchParams.get('page')
+    const limit = searchParams.get('limit')
+    if (page) params.page = parseInt(page, 10)
+    if (limit) params.limit = parseInt(limit, 10)
+    
+    // 平台筛选
+    const platform = searchParams.get('platform')
+    const platforms = searchParams.get('platforms')
+    if (platform) {
+      params.platform = [platform as Platform]
+    } else if (platforms) {
+      params.platform = platforms.split(',') as Platform[]
     }
+    
+    // 时间范围筛选
+    const dateRange = searchParams.get('dateRange')
+    if (dateRange) {
+      const [start, end] = dateRange.split(',')
+      if (start && end) {
+        params.dateRange = {
+          start: new Date(start),
+          end: new Date(end)
+        }
+      }
+    }
+    
+    // 评分筛选
+    const minScore = searchParams.get('minScore')
+    const maxScore = searchParams.get('maxScore')
+    if (minScore) params.minScore = parseFloat(minScore)
+    if (maxScore) params.maxScore = parseFloat(maxScore)
+    
+    // 评级筛选
+    const finalRate = searchParams.get('finalRate')
+    const finalRates = searchParams.get('finalRates')
+    if (finalRate) {
+      params.finalRate = [finalRate as FinalRate]
+    } else if (finalRates) {
+      params.finalRate = finalRates.split(',') as FinalRate[]
+    }
+    
+    // 情感标签筛选
+    const sentimentLabel = searchParams.get('sentimentLabel')
+    const sentimentLabels = searchParams.get('sentimentLabels')
+    if (sentimentLabel) {
+      params.sentimentLabel = [sentimentLabel as SentimentLabel]
+    } else if (sentimentLabels) {
+      params.sentimentLabel = sentimentLabels.split(',') as SentimentLabel[]
+    }
+    
+    // 搜索关键词
+    const searchQuery = searchParams.get('q') || searchParams.get('searchQuery')
+    if (searchQuery) params.searchQuery = searchQuery
+    
+    // 标签筛选
+    const tags = searchParams.get('tags')
+    if (tags) params.tags = tags.split(',')
+    
+    // 是否有分析
+    const hasAnalysis = searchParams.get('hasAnalysis')
+    if (hasAnalysis) params.hasAnalysis = hasAnalysis === 'true'
+    
+    return params
   }, [searchParams])
 
-  // Fetch data when search params change
-  useEffect(() => {
-    fetchOpportunities()
-  }, [fetchOpportunities])
+  // 使用新的useOpportunities hook
+  const { 
+    opportunities, 
+    loading, 
+    error, 
+    meta, 
+    refetch 
+  } = useOpportunities(queryParams)
 
   const handlePageChange = (page: number) => {
     const params = new URLSearchParams(searchParams.toString())
@@ -98,7 +108,7 @@ function OpportunitiesListContent() {
   }
 
   const handleRefresh = () => {
-    fetchOpportunities()
+    refetch()
   }
 
   const clearFilters = () => {
@@ -213,7 +223,7 @@ function OpportunitiesListContent() {
           {opportunities.map((opportunity) => (
             <OpportunityCard 
               key={opportunity.id} 
-              opportunity={opportunity}
+              opportunity={opportunity as OpportunityCardType}
               showPlatformBadge={true}
             />
           ))}
