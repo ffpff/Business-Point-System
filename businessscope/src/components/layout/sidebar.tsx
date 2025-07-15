@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -35,7 +35,7 @@ interface SidebarProps {
   className?: string
 }
 
-export function Sidebar({ className }: SidebarProps) {
+function SidebarContent({ className }: SidebarProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   
@@ -379,5 +379,17 @@ export function Sidebar({ className }: SidebarProps) {
         )}
       </div>
     </aside>
+  )
+}
+
+export function Sidebar({ className }: SidebarProps) {
+  return (
+    <Suspense fallback={<div className="w-80 border-r bg-background/95 backdrop-blur h-[calc(100vh-4rem)]">
+      <div className="p-6">
+        <div className="h-6 bg-gray-200 rounded animate-pulse"></div>
+      </div>
+    </div>}>
+      <SidebarContent className={className} />
+    </Suspense>
   )
 }

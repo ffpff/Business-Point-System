@@ -4,10 +4,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Heart, MessageCircle, Eye, Bookmark, ExternalLink, Clock, Tag } from "lucide-react"
-import type { OpportunityWithAnalysis } from "@/types"
+import type { Prisma } from '@prisma/client'
 import Link from "next/link"
 import { formatDistanceToNow } from "date-fns"
 import { zhCN } from "date-fns/locale"
+
+type OpportunityWithAnalysis = Prisma.RawContentGetPayload<{
+  include: { analysis: true }
+}>
 
 interface OpportunityCardProps {
   opportunity: OpportunityWithAnalysis
@@ -31,7 +35,7 @@ const getRatingColor = (rate: string) => {
 }
 
 export function OpportunityCard({ opportunity, showPlatformBadge = true }: OpportunityCardProps) {
-  const platformInfo = platformConfig[opportunity.platform] || platformConfig.twitter
+  const platformInfo = platformConfig[opportunity.platform as keyof typeof platformConfig] || platformConfig.twitter
   const publishedTime = opportunity.publishedAt || opportunity.createdAt
   
   return (

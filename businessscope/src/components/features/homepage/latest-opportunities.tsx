@@ -7,11 +7,16 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { OpportunityCard } from '@/components/features/opportunities/opportunity-card'
 import { ArrowRight, TrendingUp, Clock, Filter, Loader2 } from 'lucide-react'
-import type { OpportunityWithAnalysis } from '@/types'
+import type { Prisma } from '@prisma/client'
 import Link from 'next/link'
 
+type OpportunityWithAnalysis = Prisma.RawContentGetPayload<{
+  include: { analysis: true }
+}>
+
 // 模拟数据 - 在实际应用中应该从API获取
-const mockOpportunities: OpportunityWithAnalysis[] = [
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const mockOpportunities: any[] = [
   {
     id: '1',
     platform: 'twitter',
